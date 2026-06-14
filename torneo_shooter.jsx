@@ -306,29 +306,34 @@ export default function App() {
   }
 
   function setPlayoffWinner(matchId, winner, loser) {
-    setPlayoffResults(prev => {
-      const next = { ...prev, [matchId]: { winner, loser } };
-      setPlayoffs(p => {
-        const updated = { ...p, rounds: [...p.rounds] };
-        if (matchId === "final") { setChampion(winner); setFinalist(loser); setPhase("done"); return updated; }
-        const roundIdx = updated.rounds.findIndex(r => r.matches.some(m => m.id === matchId));
-        if (roundIdx === -1) return updated;
-        const currentRound = updated.rounds[roundIdx];
-        if (currentRound.matches.every(m => next[m.id])) {
-          const winners = currentRound.matches.map(m => next[m.id].winner);
-          if (winners.length === 2) {
-            updated.final = { id: "final", home: winners[0], away: winners[1], label: "Gran Final" };
-          } else {
-            const nextMatches = [];
-            for (let i = 0; i < winners.length; i += 2)
-              nextMatches.push({ id: `sf${Math.floor(i / 2) + 1}`, home: winners[i], away: winners[i + 1], label: `Semi ${Math.floor(i / 2) + 1}` });
-            if (roundIdx + 1 >= updated.rounds.length)
-              updated.rounds.push({ label: "Semifinales", matches: nextMatches });
-          }
+    const next = { ...playoffResults, [matchId]: { winner, loser } };
+    setPlayoffResults(next);
+
+    if (matchId === "final") {
+      setChampion(winner);
+      setFinalist(loser);
+      setPhase("done");
+      return;
+    }
+
+    setPlayoffs(p => {
+      const updated = { ...p, rounds: [...p.rounds] };
+      const roundIdx = updated.rounds.findIndex(r => r.matches.some(m => m.id === matchId));
+      if (roundIdx === -1) return updated;
+      const currentRound = updated.rounds[roundIdx];
+      if (currentRound.matches.every(m => next[m.id])) {
+        const winners = currentRound.matches.map(m => next[m.id].winner);
+        if (winners.length === 2) {
+          updated.final = { id: "final", home: winners[0], away: winners[1], label: "Gran Final" };
+        } else {
+          const nextMatches = [];
+          for (let i = 0; i < winners.length; i += 2)
+            nextMatches.push({ id: `sf${Math.floor(i / 2) + 1}`, home: winners[i], away: winners[i + 1], label: `Semi ${Math.floor(i / 2) + 1}` });
+          if (roundIdx + 1 >= updated.rounds.length)
+            updated.rounds.push({ label: "Semifinales", matches: nextMatches });
         }
-        return updated;
-      });
-      return next;
+      }
+      return updated;
     });
   }
 
@@ -671,105 +676,124 @@ export default function App() {
             </div>
 
             <div className="bracket-wrap" style={{ display: "flex", overflowX: "auto", paddingBottom: 16, alignItems: "stretch" }}>
-              {playoffs.rounds.map((round, ri) => (
+              {playoffs.rounds.map((round, ri) => {
+                const matchH = 64;
+                const gap = 16;
+                const totalH = round.matches.length * matchH + (round.matches.length - 1) * gap;
+                const isLast = playoffs.final != null;
+                return (
                 <div key={ri} style={{ display: "contents" }}>
-                  {/* Round column */}
-                  <div className="bracket-col animate-in" style={{ animationDelay: `${ri * 0.15}s`, display: "flex", flexDirection: "column", justifyContent: "space-around", minWidth: 210, gap: 12 }}>
-                    <div style={{ textAlign: "center", marginBottom: 4 }}>
+                  <div className="bracket-col animate-in" style={{ animationDelay: `${ri * 0.15}s`, display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 200, gap }}>
+                    <div style={{ textAlign: "center" }}>
                       <span className="badge badge-orange" style={{ fontSize: "0.72rem", padding: "3px 12px" }}>{round.label}</span>
                     </div>
                     {round.matches.map(match => {
                       const res = playoffResults[match.id];
                       return (
-                        <div key={match.id} style={{ background: C.surface, border: `1px solid ${res ? (res.winner ? C.green + "44" : C.border) : C.border}`, borderRadius: 4, overflow: "hidden", transition: "all 0.3s" }}>
-                          {/* Home */}
+                        <div key={match.id} style={{ height: matchH, background: C.surface, border: `1px solid ${res ? C.green + "44" : C.border}`, borderRadius: 4, overflow: "hidden", transition: "all 0.3s" }}>
                           <div className={`bracket-team ${res?.winner === match.home ? "winner" : res?.loser === match.home ? "loser" : ""}`}
-                            style={{ display: "flex", alignItems: "center", padding: "7px 10px", borderBottom: `1px solid ${C.border}`, gap: 8, transition: "all 0.3s" }}>
-                            {getTeamLogo(match.home) && <img src={getTeamLogo(match.home)} alt="" style={{ width: 18, height: 18, objectFit: "contain", borderRadius: 2 }} />}
-                            <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 600, fontSize: "0.92rem", color: res?.winner === match.home ? C.orange : res?.loser === match.home ? C.dim : C.text }}>{match.home}</span>
-                            {!res && <button className="btn-win" style={{ padding: "2px 8px", fontSize: "0.65rem" }} onClick={() => setPlayoffWinner(match.id, match.home, match.away)}>W</button>}
-                            {res?.winner === match.home && <Icon type="fire" size={12} color={C.orange} />}
-                            {res?.loser === match.home && <Icon type="skull" size={12} color={C.red} />}
+                            style={{ display: "flex", alignItems: "center", padding: "6px 10px", borderBottom: `1px solid ${C.border}`, gap: 6, height: "50%", transition: "all 0.3s" }}>
+                            {getTeamLogo(match.home) && <img src={getTeamLogo(match.home)} alt="" style={{ width: 16, height: 16, objectFit: "contain", borderRadius: 2 }} />}
+                            <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 600, fontSize: "0.9rem", color: res?.winner === match.home ? C.orange : res?.loser === match.home ? C.dim : C.text }}>{match.home}</span>
+                            {!res && <button className="btn-win" style={{ padding: "1px 7px", fontSize: "0.6rem" }} onClick={() => setPlayoffWinner(match.id, match.home, match.away)}>W</button>}
+                            {res?.winner === match.home && <Icon type="fire" size={11} color={C.orange} />}
+                            {res?.loser === match.home && <Icon type="skull" size={11} color={C.red} />}
                           </div>
-                          {/* Away */}
                           <div className={`bracket-team ${res?.winner === match.away ? "winner" : res?.loser === match.away ? "loser" : ""}`}
-                            style={{ display: "flex", alignItems: "center", padding: "7px 10px", gap: 8, transition: "all 0.3s" }}>
-                            {getTeamLogo(match.away) && <img src={getTeamLogo(match.away)} alt="" style={{ width: 18, height: 18, objectFit: "contain", borderRadius: 2 }} />}
-                            <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 600, fontSize: "0.92rem", color: res?.winner === match.away ? C.orange : res?.loser === match.away ? C.dim : C.text }}>{match.away}</span>
-                            {!res && <button className="btn-win" style={{ padding: "2px 8px", fontSize: "0.65rem" }} onClick={() => setPlayoffWinner(match.id, match.away, match.home)}>W</button>}
-                            {res?.winner === match.away && <Icon type="fire" size={12} color={C.orange} />}
-                            {res?.loser === match.away && <Icon type="skull" size={12} color={C.red} />}
+                            style={{ display: "flex", alignItems: "center", padding: "6px 10px", gap: 6, height: "50%", transition: "all 0.3s" }}>
+                            {getTeamLogo(match.away) && <img src={getTeamLogo(match.away)} alt="" style={{ width: 16, height: 16, objectFit: "contain", borderRadius: 2 }} />}
+                            <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 600, fontSize: "0.9rem", color: res?.winner === match.away ? C.orange : res?.loser === match.away ? C.dim : C.text }}>{match.away}</span>
+                            {!res && <button className="btn-win" style={{ padding: "1px 7px", fontSize: "0.6rem" }} onClick={() => setPlayoffWinner(match.id, match.away, match.home)}>W</button>}
+                            {res?.winner === match.away && <Icon type="fire" size={11} color={C.orange} />}
+                            {res?.loser === match.away && <Icon type="skull" size={11} color={C.red} />}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  {/* Challonge-style connector: horizontal lines → vertical bar → horizontal lines */}
-                  <div className="bracket-connector-wrap" style={{ width: 32, display: "flex", flexDirection: "column", justifyContent: "space-around", alignSelf: "stretch", position: "relative" }}>
-                    {round.matches.length === 2 && (
-                      <svg width="32" height="100%" style={{ position: "absolute", top: 0, left: 0 }}>
-                        {/* Top match → merge point */}
-                        <line x1="0" y1="33%" x2="16" y2="33%" stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
-                        <line x1="16" y1="33%" x2="16" y2="67%" stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
-                        <line x1="0" y1="67%" x2="16" y2="67%" stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
-                        <line x1="16" y1="50%" x2="32" y2="50%" stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
+                  {/* Connector — only between rounds, NOT if next is final (final has its own) */}
+                  {(ri < playoffs.rounds.length - 1) && (
+                    <div className="bracket-connector-wrap" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="28" height={totalH} viewBox={`0 0 28 ${totalH}`}>
+                        {round.matches.length === 2 && (() => {
+                          const y1 = matchH / 2;
+                          const y2 = matchH + gap + matchH / 2;
+                          const mid = (y1 + y2) / 2;
+                          return <>
+                            <line x1="0" y1={y1} x2="14" y2={y1} stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
+                            <line x1="0" y1={y2} x2="14" y2={y2} stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
+                            <line x1="14" y1={y1} x2="14" y2={y2} stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
+                            <line x1="14" y1={mid} x2="28" y2={mid} stroke={C.orange} strokeWidth="1.5" opacity="0.7" />
+                          </>;
+                        })()}
+                        {round.matches.length === 4 && (() => {
+                          const y1 = matchH / 2;
+                          const y2 = matchH + gap + matchH / 2;
+                          const y3 = 2 * (matchH + gap) + matchH / 2;
+                          const y4 = 3 * (matchH + gap) + matchH / 2;
+                          const midTop = (y1 + y2) / 2;
+                          const midBot = (y3 + y4) / 2;
+                          return <>
+                            <line x1="0" y1={y1} x2="14" y2={y1} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="0" y1={y2} x2="14" y2={y2} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="14" y1={y1} x2="14" y2={y2} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="14" y1={midTop} x2="28" y2={midTop} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="0" y1={y3} x2="14" y2={y3} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="0" y1={y4} x2="14" y2={y4} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="14" y1={y3} x2="14" y2={y4} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                            <line x1="14" y1={midBot} x2="28" y2={midBot} stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                          </>;
+                        })()}
                       </svg>
-                    )}
-                    {round.matches.length === 4 && (
-                      <svg width="32" height="100%" style={{ position: "absolute", top: 0, left: 0 }}>
-                        {/* Top pair */}
-                        <line x1="0" y1="15%" x2="16" y2="15%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="16" y1="15%" x2="16" y2="35%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="0" y1="35%" x2="16" y2="35%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="16" y1="25%" x2="32" y2="25%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        {/* Bottom pair */}
-                        <line x1="0" y1="65%" x2="16" y2="65%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="16" y1="65%" x2="16" y2="85%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="0" y1="85%" x2="16" y2="85%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
-                        <line x1="16" y1="75%" x2="32" y2="75%" stroke={C.orange} strokeWidth="1" opacity="0.6" />
+                    </div>
+                  )}
+                  {/* Connector to final (golden) — only from last round */}
+                  {(ri === playoffs.rounds.length - 1 && playoffs.final) && (
+                    <div className="bracket-connector-wrap" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="28" height={totalH} viewBox={`0 0 28 ${totalH}`}>
+                        {(() => {
+                          const y1 = matchH / 2;
+                          const y2 = (round.matches.length - 1) * (matchH + gap) + matchH / 2;
+                          const mid = (y1 + y2) / 2;
+                          return <>
+                            <line x1="0" y1={y1} x2="14" y2={y1} stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
+                            <line x1="0" y1={y2} x2="14" y2={y2} stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
+                            <line x1="14" y1={y1} x2="14" y2={y2} stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
+                            <line x1="14" y1={mid} x2="28" y2={mid} stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
+                          </>;
+                        })()}
                       </svg>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-
-              {/* Connector to final */}
-              {playoffs.rounds.length > 0 && playoffs.final && (
-                <div className="bracket-connector-wrap" style={{ width: 32, display: "flex", alignSelf: "stretch", position: "relative" }}>
-                  <svg width="32" height="100%" style={{ position: "absolute", top: 0, left: 0 }}>
-                    <line x1="0" y1="38%" x2="16" y2="38%" stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
-                    <line x1="16" y1="38%" x2="16" y2="62%" stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
-                    <line x1="0" y1="62%" x2="16" y2="62%" stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
-                    <line x1="16" y1="50%" x2="32" y2="50%" stroke={C.gold} strokeWidth="1.5" opacity="0.8" />
-                  </svg>
-                </div>
-              )}
+                );
+              })}
 
               {/* Final */}
               {playoffs.final && (
-                <div className="bracket-col animate-in" style={{ animationDelay: "0.3s", minWidth: 230, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <div className="bracket-col animate-in" style={{ animationDelay: "0.3s", minWidth: 210, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <div style={{ textAlign: "center", marginBottom: 8 }}>
                     <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 14px" }}>
                       <Icon type="trophy" size={11} color={C.gold} /> GRAN FINAL
                     </span>
                   </div>
-                  <div style={{ background: "linear-gradient(135deg, #1a0a00, #0d0d0d)", border: `1px solid ${playoffResults.final ? C.gold + "88" : C.gold + "33"}`, borderRadius: 4, overflow: "hidden", transition: "all 0.4s" }}
+                  <div style={{ height: 64, background: "linear-gradient(135deg, #1a0a00, #0d0d0d)", border: `1px solid ${playoffResults.final ? C.gold + "88" : C.gold + "33"}`, borderRadius: 4, overflow: "hidden", transition: "all 0.4s" }}
                     className={playoffResults.final ? "glow-pulse" : ""}>
                     <div className={`bracket-team ${playoffResults.final?.winner === playoffs.final.home ? "winner" : playoffResults.final?.loser === playoffs.final.home ? "loser" : ""}`}
-                      style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderBottom: `1px solid ${C.gold}22`, gap: 8, transition: "all 0.4s" }}>
-                      {getTeamLogo(playoffs.final.home) && <img src={getTeamLogo(playoffs.final.home)} alt="" style={{ width: 20, height: 20, objectFit: "contain", borderRadius: 2 }} />}
-                      <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 700, fontSize: "1.05rem", color: playoffResults.final?.winner === playoffs.final.home ? C.gold : playoffResults.final ? C.dim : C.text }}>{playoffs.final.home}</span>
-                      {!playoffResults.final && <button className="btn-win" style={{ padding: "2px 10px", fontSize: "0.7rem", borderColor: C.gold + "44", color: C.gold }} onClick={() => setPlayoffWinner("final", playoffs.final.home, playoffs.final.away)}>WIN</button>}
-                      {playoffResults.final?.winner === playoffs.final.home && <span className="crown-bounce" style={{ display: "inline-flex" }}><Icon type="trophy" size={14} color={C.gold} /></span>}
-                      {playoffResults.final?.loser === playoffs.final.home && <span className="skull-shake" style={{ display: "inline-flex" }}><Icon type="skull" size={14} color={C.red} /></span>}
+                      style={{ display: "flex", alignItems: "center", padding: "6px 10px", borderBottom: `1px solid ${C.gold}22`, gap: 8, height: "50%", transition: "all 0.4s" }}>
+                      {getTeamLogo(playoffs.final.home) && <img src={getTeamLogo(playoffs.final.home)} alt="" style={{ width: 18, height: 18, objectFit: "contain", borderRadius: 2 }} />}
+                      <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 700, fontSize: "0.95rem", color: playoffResults.final?.winner === playoffs.final.home ? C.gold : playoffResults.final ? C.dim : C.text }}>{playoffs.final.home}</span>
+                      {!playoffResults.final && <button className="btn-win" style={{ padding: "1px 8px", fontSize: "0.6rem", borderColor: C.gold + "44", color: C.gold }} onClick={() => setPlayoffWinner("final", playoffs.final.home, playoffs.final.away)}>W</button>}
+                      {playoffResults.final?.winner === playoffs.final.home && <span className="crown-bounce" style={{ display: "inline-flex" }}><Icon type="trophy" size={13} color={C.gold} /></span>}
+                      {playoffResults.final?.loser === playoffs.final.home && <span className="skull-shake" style={{ display: "inline-flex" }}><Icon type="skull" size={13} color={C.red} /></span>}
                     </div>
                     <div className={`bracket-team ${playoffResults.final?.winner === playoffs.final.away ? "winner" : playoffResults.final?.loser === playoffs.final.away ? "loser" : ""}`}
-                      style={{ display: "flex", alignItems: "center", padding: "10px 12px", gap: 8, transition: "all 0.4s" }}>
-                      {getTeamLogo(playoffs.final.away) && <img src={getTeamLogo(playoffs.final.away)} alt="" style={{ width: 20, height: 20, objectFit: "contain", borderRadius: 2 }} />}
-                      <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 700, fontSize: "1.05rem", color: playoffResults.final?.winner === playoffs.final.away ? C.gold : playoffResults.final ? C.dim : C.text }}>{playoffs.final.away}</span>
-                      {!playoffResults.final && <button className="btn-win" style={{ padding: "2px 10px", fontSize: "0.7rem", borderColor: C.gold + "44", color: C.gold }} onClick={() => setPlayoffWinner("final", playoffs.final.away, playoffs.final.home)}>WIN</button>}
-                      {playoffResults.final?.winner === playoffs.final.away && <span className="crown-bounce" style={{ display: "inline-flex" }}><Icon type="trophy" size={14} color={C.gold} /></span>}
-                      {playoffResults.final?.loser === playoffs.final.away && <span className="skull-shake" style={{ display: "inline-flex" }}><Icon type="skull" size={14} color={C.red} /></span>}
+                      style={{ display: "flex", alignItems: "center", padding: "6px 10px", gap: 8, height: "50%", transition: "all 0.4s" }}>
+                      {getTeamLogo(playoffs.final.away) && <img src={getTeamLogo(playoffs.final.away)} alt="" style={{ width: 18, height: 18, objectFit: "contain", borderRadius: 2 }} />}
+                      <span style={{ flex: 1, fontFamily: "Teko", fontWeight: 700, fontSize: "0.95rem", color: playoffResults.final?.winner === playoffs.final.away ? C.gold : playoffResults.final ? C.dim : C.text }}>{playoffs.final.away}</span>
+                      {!playoffResults.final && <button className="btn-win" style={{ padding: "1px 8px", fontSize: "0.6rem", borderColor: C.gold + "44", color: C.gold }} onClick={() => setPlayoffWinner("final", playoffs.final.away, playoffs.final.home)}>W</button>}
+                      {playoffResults.final?.winner === playoffs.final.away && <span className="crown-bounce" style={{ display: "inline-flex" }}><Icon type="trophy" size={13} color={C.gold} /></span>}
+                      {playoffResults.final?.loser === playoffs.final.away && <span className="skull-shake" style={{ display: "inline-flex" }}><Icon type="skull" size={13} color={C.red} /></span>}
                     </div>
                   </div>
                 </div>
