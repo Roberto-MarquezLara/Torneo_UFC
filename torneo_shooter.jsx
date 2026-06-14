@@ -216,7 +216,7 @@ export default function App() {
   function updatePending(matchId, field, value) {
     setPendingScores(prev => ({
       ...prev,
-      [matchId]: { ...prev[matchId], [field]: Math.min(Math.max(parseInt(value) || 0, 0), 2) }
+      [matchId]: { ...prev[matchId], [field]: Math.min(Math.max(parseInt(value) || 0, 0), 3) }
     }));
   }
 
@@ -225,10 +225,9 @@ export default function App() {
     if (!p) return;
     const h = p.home || 0;
     const a = p.away || 0;
-    if ((h === 2 && a <= 1) || (a === 2 && h <= 1)) {
-      if (h === 2) setWinner(matchId, home, away, `2-${a}`);
-      else setWinner(matchId, away, home, `2-${h}`);
-    }
+    if (h + a !== 3) return;
+    if (h > a) setWinner(matchId, home, away, `${h}-${a}`);
+    else setWinner(matchId, away, home, `${a}-${h}`);
   }
 
   function isValidPending(matchId) {
@@ -236,7 +235,7 @@ export default function App() {
     if (!p) return false;
     const h = p.home || 0;
     const a = p.away || 0;
-    return (h === 2 && a <= 1) || (a === 2 && h <= 1);
+    return h + a === 3 && h !== a;
   }
 
   function toggleRound(ri) {
@@ -248,14 +247,15 @@ export default function App() {
     teams.forEach(t => { stats[t] = { name: t, w: 0, l: 0, pts: 0, mw: 0, ml: 0 }; });
     Object.values(results).forEach(({ winner, loser, score }) => {
       if (!stats[winner] || !stats[loser]) return;
+      const [wMaps, lMaps] = score.split("-").map(Number);
       stats[winner].w++;
       stats[winner].pts += 3;
-      stats[winner].mw += 2;
-      stats[winner].ml += score === "2-1" ? 1 : 0;
+      stats[winner].mw += wMaps;
+      stats[winner].ml += lMaps;
       stats[loser].l++;
-      stats[loser].pts += score === "2-1" ? 1 : 0;
-      stats[loser].mw += score === "2-1" ? 1 : 0;
-      stats[loser].ml += 2;
+      stats[loser].pts += lMaps >= 1 ? 1 : 0;
+      stats[loser].mw += lMaps;
+      stats[loser].ml += wMaps;
     });
     setStandings(Object.values(stats).sort((a, b) => b.pts - a.pts || (b.mw - b.ml) - (a.mw - a.ml)));
   }
@@ -385,7 +385,7 @@ export default function App() {
             <Icon type="shield" size={14} color={C.orange} />
             <strong style={{ color: C.orange, textTransform: "uppercase", letterSpacing: 1 }}>Briefing de Misión</strong>
           </div>
-          <span style={{ color: C.orange }}>①</span> Fase Grupal — Victoria 2-0 = 3pts · Victoria 2-1 = 3pts (perdedor +1pt)<br />
+          <span style={{ color: C.orange }}>①</span> Fase Grupal — Se juegan 3 mapas · Victoria 3-0 = 3pts · Victoria 2-1 = 3pts (perdedor +1pt)<br />
           <span style={{ color: C.orange }}>②</span> Eliminación — Top clasificados en bracket directo<br />
           <span style={{ color: C.orange }}>③</span> Final — El último en pie se lleva la gloria
         </div>
@@ -515,11 +515,11 @@ export default function App() {
                               </div>
                               {!res ? (
                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  <input className="score-input" type="number" min="0" max="2" placeholder="-"
+                                  <input className="score-input" type="number" min="0" max="3" placeholder="-"
                                     value={pending?.home ?? ""}
                                     onChange={e => updatePending(match.id, "home", e.target.value)} />
                                   <span style={{ color: C.orange, fontSize: "1.1rem", fontWeight: 700 }}>:</span>
-                                  <input className="score-input" type="number" min="0" max="2" placeholder="-"
+                                  <input className="score-input" type="number" min="0" max="3" placeholder="-"
                                     value={pending?.away ?? ""}
                                     onChange={e => updatePending(match.id, "away", e.target.value)} />
                                   {valid && (
